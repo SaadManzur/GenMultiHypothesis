@@ -1,9 +1,5 @@
 import os
-import sys
 import time
-import copy
-import h5py
-import glob
 import argparse
 import numpy as np
 from tensorflow.core.framework.summary_pb2 import SummaryMetadata
@@ -13,10 +9,8 @@ import src.cameras as cameras
 from tensorflow.python.client import device_lib
 from progress.bar import Bar
 from src.mix_den_model import LinearModel
-from src.data_utils import postprocess_3d, define_actions, project_to_cameras
-from src.data_utils import transform_world_to_camera, postprocess_3d, normalization_stats, normalize_data
-from src.data_utils import unNormalizeData
 from datasets.utils import AverageMeter, unnormalize_data
+from datasets.visualizer import plot_3d
 
 from datasets.GPADataset import GPADataset
 from datasets.H36MDataset import H36MDataset
@@ -79,6 +73,7 @@ def parser():
     parser.add_argument("--load_dir", type=str)
     parser.add_argument("--dataset", type=str)
     parser.add_argument("--eval_n_epoch", type=int, default=5)
+    parser.add_argument("--qual", type=str, default=None)
     
     return parser.parse_args()
 
@@ -244,11 +239,11 @@ def evaluate(sess, model, dataset):
         # print(pose_3d.shape)
 
         for k in range(pose_3d.shape[-1]):
-            pose_3d[:, :, :, k] = unnormalize_data(pred_all_re[:, :, :, k], dataset.mean_3d, dataset.std_3d)
+            pose_3d[:, :, :, k] = unnormalize_data(pred_all_re[:, :, :, k], dataset.mean_3d, dataset.std_3d, skip_root=True)
 
         out_re = out_.reshape((-1, model.HUMAN_3D_SIZE//3, 3))
 
-        un_out = unnormalize_data(out_re, dataset.mean_3d, dataset.std_3d)
+        un_out = unnormalize_data(out_re, dataset.mean_3d, dataset.std_3d, skip_root=True)
 
         sqerr = (pose_3d - np.expand_dims(un_out, axis=3))**2
         dists = np.zeros((sqerr.shape[0], model.HUMAN_3D_SIZE//3, sqerr.shape[3]))
@@ -276,6 +271,52 @@ def evaluate(sess, model, dataset):
     bar.finish()
 
     return avg_minerr
+
+
+def qualitative_test(dataset, dirname):
+
+    save_dir = os.path.join("out", dirname)
+
+    if not os.path.exists(save_dir):
+        os.mkdir(save_dir)
+    
+    test_2d = dataset.get_2d_valid()
+    test_3d = dataset.get_3d_valid()
+
+    device_count = { "GPU": 1 }
+
+    with tf.Session(config = tf.ConfigProto(
+            device_count = device_count,
+            allow_soft_placement = True
+        )) as sess:
+
+        model = create_model(sess, FLAGS["batch_size"])
+
+        enc_in, dec_out = model.get_all_batches(test_2d, test_3d, camera_frame=False, training=False)
+
+        n_batches = len(enc_in)
+
+        for i_batch in tqdm(range(n_batches)):
+            
+            in_, out_ = enc_in[i_batch], dec_out[i_batch]
+
+            _, _, pred_all = model.step(sess, in_, out_, dropout_keep_prob=1.0, isTraining=False)
+
+            pred_all_re = np.reshape(pred_all, [-1, model.HUMAN_3D_SIZE+2, model.num_models])
+            pred_all_re = pred_all_re[:, :model.HUMAN_3D_SIZE, :]
+            pred_all_re = pred_all_re.reshape((-1, model.HUMAN_3D_SIZE//3, 3, model.num_models))
+
+            pose_3d = np.zeros(pred_all_re.shape)
+
+            for k in range(pose_3d.shape[-1]):
+                pose_3d[:, :, :, k] = unnormalize_data(pred_all_re[:, :, :, k], dataset.mean_3d, dataset.std_3d, skip_root=True)
+                plot_3d(pose_3d[0, :, :, k], os.path.join(save_dir, str(i_batch)+"_"+str(k)+".png"))
+            
+            out_re = np.reshape(out_, (-1, model.HUMAN_3D_SIZE//3, 3))
+
+            out_re = unnormalize_data(out_re, dataset.mean_3d, dataset.std_3d, skip_root=True)
+
+            plot_3d(out_re[0, :, :], os.path.join(save_dir, str(i_batch)+"_gt.png"))
 
 
 def check_flag_consistency(args):
@@ -316,8 +357,10 @@ if __name__ == "__main__":
         dataset = H36MDataset('data/h36m')
     else:
         raise ValueError("Dataset not supported. Only supports: h36m, gpa, and 3dpw")
-
-    if FLAGS['test']:
+    
+    if args.qual:
+        qualitative_test(dataset, args.qual)
+    elif FLAGS['test']:
         test(dataset)
     else:
         train(dataset)

@@ -32,9 +32,12 @@ def normalize_data(X, mean, std, skip_root=False):
 
     return X
 
-def unnormalize_data(X, mean, std):
+def unnormalize_data(X, mean, std, skip_root=False):
 
     for i in range(X.shape[0]):
-        X[i, 1:] = np.multiply(X[i, 1:], std[1:]) + mean[1:]
+        if not skip_root:
+            X[i, :] = np.divide(X[i, :] - mean[:], std[:])
+        else:
+            X[i, 1:] = np.multiply(X[i, 1:], std[1:]) + mean[1:]
 
     return X
