@@ -14,6 +14,9 @@ and for 3d:
 
 For GPA, the original joint ordering appears to be flipped from the original one.
 
+# Datasets
+Datasets can be found [here]{https://drive.google.com/drive/folders/1AeHrozrHHPUuDdW4Shm6QX-K12K566c4?usp=sharing}. Even though, the datasets are here, you will need proper authorization to use in research.
+
 # Quantative Results
 
 | Train(&#8595;) Test(&#8594;)   |  H36M  |  GPA   |  3DPW  | 3DPW_AUG | SURREAL |
