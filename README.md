@@ -24,6 +24,16 @@ For GPA, the original joint ordering appears to be flipped from the original one
 | 3DPW_AUG                       | 162.54 | 154.22 |  95.88 |    78.64 |  118.95 |
 | SURREAL                        |        |        |        |          |   65.21 |
 
+## Command Line Args
+```
+--train_dir: Training will checkpoint initially at "experiments/${train_dir}"
+--load_dir : Model will load and save later training progress at "experiments/${load_dir}"
+--load     : checkpoint number (must if you specified load_dir)
+--test     : True if you want to evaluate
+--dataset  : Supported dataset: h36m, gpa, 3dpw, 3dpw_aug
+--qual     : Test and save images to "out/${qual}"
+```
+
 # Qualitative Results
 First 5 of each row are different hypothesis. And the last column is the ground truth.
 
