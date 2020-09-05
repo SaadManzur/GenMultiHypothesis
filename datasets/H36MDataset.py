@@ -92,7 +92,7 @@ def visualize_3d(joints_3d, filename="debug3d"):
 
 class H36MDataset(object):
 
-    def __init__(self, path):
+    def __init__(self, path, load_metrics=None):
         # TODO: Update the fps here if needed
         super(H36MDataset, self).__init__()
 
@@ -109,9 +109,11 @@ class H36MDataset(object):
 
         self.cameras = []
 
-        self.load_data(path)
+        self.load_data(path, load_metrics)
 
-    def load_data(self, path):
+    def load_data(self, path, load_metrics):
+        filename, _ = os.path.splitext(os.path.basename(path))
+
         indices_to_select_2d = [0, 1, 2, 3, 6, 7, 8, 12, 13, 15, 17, 18, 19, 25, 26, 27]
         indices_to_select_3d = [1, 2, 3, 6, 7, 8, 12, 13, 14, 15, 17, 18, 19, 25, 26, 27]
 
@@ -136,16 +138,26 @@ class H36MDataset(object):
         self._data_valid['2d'] = np.array(d2d_valid)[:, indices_to_select_2d, :]
         self._data_valid['3d'] = self.root_center(np.array(d3d_valid))[:, indices_to_select_2d, :]
 
-        self.mean_3d = np.mean(self._data_train['3d'], axis=0)
-        self.std_3d = np.std(self._data_train['3d'], axis=0)
-        self.mean_2d = np.mean(self._data_train['2d'], axis=0)
-        self.std_2d = np.std(self._data_valid['2d'], axis=0)
+        if not load_metrics:
+            self.mean_3d = np.mean(self._data_train['3d'], axis=0)
+            self.std_3d = np.std(self._data_train['3d'], axis=0)
+            self.mean_2d = np.mean(self._data_train['2d'], axis=0)
+            self.std_2d = np.std(self._data_valid['2d'], axis=0)
+
+            if not os.path.exists(os.path.join("metrics/", filename + "_metrics.npz")):
+                np.savez_compressed(
+                    os.path.join("metrics/", filename + "_metrics"),
+                    mean_2d=self.mean_2d, std_2d=self.std_2d,
+                    mean_3d=self.mean_3d, std_3d=self.std_3d)
+        else:
+            data = np.load(load_metrics)
+            self.mean_2d = data['mean_2d']
+            self.std_2d = data['std_2d']
+            self.mean_3d = data['mean_3d']
+            self.std_3d = data['std_3d']
 
         width=1000
         height=1002
-
-        # visualize_2d(self._data_train['2d'][0, :, :], 'debug2dH36M')
-        # visualize_3d(self._data_train['3d'][0, :, :], 'debugH36M')
 
         self._data_train['3d'] = normalize_data(self._data_train['3d'], self.mean_3d, self.std_3d, skip_root=True)
         self._data_train['2d'] = normalize_data(self._data_train['2d'], self.mean_2d, self.std_2d)
@@ -153,8 +165,6 @@ class H36MDataset(object):
         self._data_valid['3d'] = normalize_data(self._data_valid['3d'], self.mean_3d, self.std_3d, skip_root=True)
         self._data_valid['2d'] = normalize_data(self._data_valid['2d'], self.mean_2d, self.std_2d)
 
-        # visualize_2d(self._data_train['2d'][0, :, :], 'debug2dH36M')
-        # visualize_3d(self._data_train['3d'][0, :, :], 'debugH36M')
 
     def load_3d_data(self, path, subjects, actions):
 

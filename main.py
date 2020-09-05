@@ -1,3 +1,4 @@
+from datasets.SurrealDataset import SurrealDataset
 import os
 import time
 import argparse
@@ -74,6 +75,7 @@ def parser():
     parser.add_argument("--dataset", type=str)
     parser.add_argument("--eval_n_epoch", type=int, default=5)
     parser.add_argument("--qual", type=str, default=None)
+    parser.add_argument("--metrics", type=str, default=None)
     
     return parser.parse_args()
 
@@ -144,7 +146,6 @@ def train(dataset):
         once = False
 
         for epoch in range(n_epochs):
-            print(eval_every_n_epochs)
             loss = AverageMeter()
 
             start_time = time.time()
@@ -202,8 +203,6 @@ def test(dataset):
         model = create_model(sess, FLAGS["batch_size"])
 
         err = evaluate(sess, model, dataset)
-
-        print(err)
 
 
 def evaluate(sess, model, dataset):
@@ -321,6 +320,9 @@ def qualitative_test(dataset, dirname):
 
 def check_flag_consistency(args):
 
+    if not os.path.exists("metrics"):
+        os.mkdir("metrics")
+
     if args.train_dir:
         FLAGS['train_dir'] = os.path.join("experiments", args.train_dir)
 
@@ -340,6 +342,7 @@ def check_flag_consistency(args):
 
     if args.load_dir:
         FLAGS['load_dir'] = os.path.join("experiments", args.load_dir)
+        FLAGS['train_dir'] = os.path.join("experiments", args.load_dir)
         summaries_dir = os.path.join(FLAGS["load_dir"], "summaries")
 
 
@@ -350,11 +353,15 @@ if __name__ == "__main__":
     eval_every_n_epochs = args.eval_n_epoch
     
     if args.dataset == '3dpw':
-        dataset = ThreeDPWDataset('data/3dpw_without_crosscountry.npz')
+        dataset = ThreeDPWDataset('data/3dpw_wo_invalid.npz', args.metrics)
     elif args.dataset == 'gpa':
-        dataset = GPADataset('data/gpa_xyz_projected_wc_v3.npz')
+        dataset = GPADataset('data/gpa_xyz_projected_wc_v3.npz', args.metrics)
     elif args.dataset == 'h36m':
-        dataset = H36MDataset('data/h36m')
+        dataset = H36MDataset('data/h36m', args.metrics)
+    elif args.dataset == 'surreal':
+        dataset = SurrealDataset("data/surreal_train_compiled.npz", "data/surreal_val_compiled.npz")
+    elif args.dataset == '3dpw_aug':
+        dataset = ThreeDPWDataset("data/3dpw_augmented_wo_invalid.npz", args.metrics)
     else:
         raise ValueError("Dataset not supported. Only supports: h36m, gpa, and 3dpw")
     

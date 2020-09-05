@@ -12,14 +12,17 @@ and for 3d:
 [1, 2, 3, 6, 7, 8, 12, 13, 14, 15, 17, 18, 19, 25, 26, 27]
 ```
 
+For GPA, the original joint ordering appears to be flipped from the original one.
+
 # Quantative Results
 
-| Train(&#8595;) Test(&#8594;)   |  H36M  |  GPA   |  3DPW  |
-|--------------------------------|--------|--------|--------|
-| H36M                           |  61.46 | 140.95 |  97.66 |
-| GPA                            | 135.37 |  70.23 | 130.03 |
-| 3DPW                           | 125.65 | 128.83 |  67.15 |
-
+| Train(&#8595;) Test(&#8594;)   |  H36M  |  GPA   |  3DPW  | 3DPW_AUG | SURREAL |
+|--------------------------------|--------|--------|--------|----------|---------|
+| H36M                           |  61.46 | 140.95 |  97.66 |   152.53 |  156.63 |
+| GPA                            | 135.37 |  70.23 | 130.03 |   188.21 |  179.80 |
+| 3DPW                           | 125.65 | 128.83 |  67.15 |   142.13 |  131.78 |
+| 3DPW_AUG                       | 162.54 | 154.22 |  95.88 |    78.64 |  118.95 |
+| SURREAL                        |        |        |        |          |   65.21 |
 
 # Qualitative Results
 First 5 of each row are different hypothesis. And the last column is the ground truth.
@@ -67,3 +70,6 @@ First 5 of each row are different hypothesis. And the last column is the ground 
 | <img src="./out/gpa_h36m/2_0.png"> | <img src="./out/gpa_h36m/2_1.png"> | <img src="./out/gpa_h36m/2_2.png"> | <img src="./out/gpa_h36m/2_3.png"> | <img src="./out/gpa_h36m/2_4.png"> | <img src="./out/gpa_h36m/2_gt.png"> |
 | <img src="./out/gpa_h36m/3_0.png"> | <img src="./out/gpa_h36m/3_1.png"> | <img src="./out/gpa_h36m/3_2.png"> | <img src="./out/gpa_h36m/3_3.png"> | <img src="./out/gpa_h36m/3_4.png"> | <img src="./out/gpa_h36m/3_gt.png"> |
 | <img src="./out/gpa_h36m/4_0.png"> | <img src="./out/gpa_h36m/4_1.png"> | <img src="./out/gpa_h36m/4_2.png"> | <img src="./out/gpa_h36m/4_3.png"> | <img src="./out/gpa_h36m/4_4.png"> | <img src="./out/gpa_h36m/4_gt.png"> |
+
+
+| GPA_FLIPPED                    | 196.20 |        | 164.10 |   176.34 |       72.08 |

@@ -1,3 +1,4 @@
+import os
 import copy
 import numpy as np
 from tqdm import tqdm
@@ -55,11 +56,9 @@ def visualize_2d(joints_2d, filename="debug"):
 
 class GPADataset(object):
 
-    def __init__(self, path):
-        # TODO: Update the fps here if needed
+    def __init__(self, path, load_metrics=None):
         super(GPADataset, self).__init__()
 
-        # TODO: Update camera later if needed
         self.cameras = None
 
         self._data_train = {"2d": np.zeros((0, 16, 2), dtype=np.float32), "3d": np.zeros((0, 16, 3), dtype=np.float32)}
@@ -70,9 +69,11 @@ class GPADataset(object):
         self.mean_3d = 0.0
         self.std_3d = 0.0
 
-        self.load_data(path)
+        self.load_data(path, load_metrics)
 
-    def load_data(self, path):
+    def load_data(self, path, load_metrics):
+
+        filename, _ = os.path.splitext(os.path.basename(path))
 
         data = np.load(path, allow_pickle=True, encoding='latin1')['data'].item()
 
@@ -80,7 +81,7 @@ class GPADataset(object):
         data_valid = data['test']
 
         indices_to_select = [0, 24, 25, 26, 29, 30, 31, 2, 5, 6, 7, 17, 18, 19, 9, 10, 11]
-        indices_to_sort = [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16]
+        indices_to_sort = [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16] # [0, 4, 5, 6, 1, 2, 3, 7, 8, 10, 14, 15, 16, 11, 12, 13]
 
         self._data_train['2d'] = data_train["2d_projected"][:, indices_to_select,  :][:, indices_to_sort, :]
         self._data_train['3d'] = data_train["3d"][:, indices_to_select,  :][:, indices_to_sort, :]*1000
@@ -90,22 +91,29 @@ class GPADataset(object):
         self._data_valid['2d'] = data_valid["2d_projected"][:, indices_to_select,  :][:, indices_to_sort, :]
         self._data_valid['3d'] = data_valid["3d"][:, indices_to_select,  :][:, indices_to_sort, :]*1000
 
-        """
-        print("Normalizing screen coordinates")
-        self._data_train['2d'] = normalize_screen_coordinates(self._data_train['2d'], 1920, 1080)
-        self._data_valid['2d'] = normalize_screen_coordinates(self._data_valid['2d'], 1920, 1080)
-        """
-
         for i in range(self._data_train['3d'].shape[0]):
             self._data_train['3d'][i, :] -= self._data_train['3d'][i, 0]
 
         for i in range(self._data_valid['3d'].shape[0]):
             self._data_valid['3d'][i, :] -= self._data_valid['3d'][i, 0]
 
-        self.mean_2d = np.mean(self._data_train['2d'], axis=0)
-        self.std_2d = np.std(self._data_train['2d'], axis=0)
-        self.mean_3d = np.mean(self._data_train['3d'], axis=0)
-        self.std_3d = np.std(self._data_train['3d'], axis=0)
+        if not load_metrics:
+            self.mean_2d = np.mean(self._data_train['2d'], axis=0)
+            self.std_2d = np.std(self._data_train['2d'], axis=0)
+            self.mean_3d = np.mean(self._data_train['3d'], axis=0)
+            self.std_3d = np.std(self._data_train['3d'], axis=0)
+
+            if not os.path.exists(os.path.join("metrics/", filename + "_metrics.npz")):
+                np.savez_compressed(
+                    os.path.join("metrics/", filename + "_metrics"),
+                    mean_2d=self.mean_2d, std_2d=self.std_2d,
+                    mean_3d=self.mean_3d, std_3d=self.std_3d)
+        else:
+            data = np.load(load_metrics)
+            self.mean_2d = data['mean_2d']
+            self.std_2d = data['std_2d']
+            self.mean_3d = data['mean_3d']
+            self.std_3d = data['std_3d']
 
         self._data_train['3d'] = normalize_data(self._data_train['3d'], self.mean_3d, self.std_3d, skip_root=True)
         self._data_train['2d'] = normalize_data(self._data_train['2d'], self.mean_2d, self.std_2d)

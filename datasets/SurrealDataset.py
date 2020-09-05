@@ -1,17 +1,15 @@
 import copy
-import os
 import numpy as np
 from tqdm import tqdm
 from datasets.utils import normalize_screen_coordinates
 from datasets.utils import normalize_data, unnormalize_data
-from datasets.utils import rotate_y
 from matplotlib import pyplot as plt
 
 parents = [-1, 0, 1, 2, 0, 4, 5, 0, 7, 8, 8, 10, 11, 8, 13, 14]
 joints_left = [4, 5, 6, 10, 11, 12]
 joints_right = [1, 2, 3, 13, 14, 15]
-                        
-skeleton_3dpw_joints_group = [[2, 3], [5, 6], [1, 4], [0, 7], [8, 9], [14, 15], [11, 12], [10, 13]]
+
+skeleton_surreal_joints_group = [[2, 3], [5, 6], [1, 4], [0, 7], [8, 9], [14, 15], [11, 12], [10, 13]]
 
 NAMES_3DPW = ['']*16
 NAMES_3DPW[0] = 'Hip'
@@ -31,10 +29,6 @@ NAMES_3DPW[13] = 'RUpperArm'
 NAMES_3DPW[14] = 'RElbow'
 NAMES_3DPW[15] = 'RWrist'
 
-# Human3.6m IDs for training and testing
-TRAIN_SUBJECTS = ['S0']
-TEST_SUBJECTS = ['S0']
-
 def visualize_2d(joints_2d, filename="debug"):
     plt.scatter(joints_2d[:, 0], joints_2d[:, 1], color='k')
 
@@ -51,15 +45,14 @@ def visualize_2d(joints_2d, filename="debug"):
                      [joints_2d[i, 1], joints_2d[parent, 1]],
                      color=color)
 
-    plt.xlim((-1, 1))
-    plt.ylim((1, -1))
-    plt.savefig(filename + ".png") 
+    plt.xlim((0, 256))
+    plt.ylim((256, 0))
+    plt.savefig(filename + ".png")
 
-class ThreeDPWDataset(object):
+class SurrealDataset(object):
 
-    def __init__(self, path, load_metrics=None):
-        # TODO: Update the fps here if needed
-        super(ThreeDPWDataset, self).__init__()
+    def __init__(self, path_train, path_valid):
+        super(SurrealDataset, self).__init__()
 
         # TODO: Update camera later if needed
         self.cameras = None
@@ -72,49 +65,32 @@ class ThreeDPWDataset(object):
         self.mean_3d = 0.0
         self.std_3d = 0.0
 
-        self.load_data(path, load_metrics)
+        self.load_data(path_train, path_valid)
 
-    def load_data(self, path, load_metrics):
+    def load_data(self, path_train, path_valid):
 
-        filename, _ = os.path.splitext(os.path.basename(path))
+        data_train = np.load(path_train, allow_pickle=True)
+        data_valid = np.load(path_valid, allow_pickle=True)
 
-        data = np.load(path, allow_pickle=True, encoding='latin1')['data'].item()
-
-        data_train = data['train']
-        data_valid = data['test']
-
+        indices_to_arrange = [0, 2, 1, 3, 5, 4, 6, 8, 7, 9, 11, 10, 12, 14, 13, 15, 17, 16, 19, 18, 21, 20, 23, 22]
         indices_to_select = [0, 1, 4, 7, 2, 5, 8, 6, 12, 15, 17, 19, 21, 16, 18, 20]
 
-        self._data_train['2d'] = data_train["combined_2d"][:, indices_to_select,  :]
-        self._data_train['3d'] = data_train["combined_3d_cam"][:, indices_to_select,  :]*1000
+        self._data_train['2d'] = data_train["data_2d"][:, indices_to_arrange, :][:, indices_to_select,  :]
+        self._data_train['3d'] = data_train["data_3d"][:, indices_to_arrange, :][:, indices_to_select,  :]
 
-        self._data_valid['2d'] = data_valid["combined_2d"][:, indices_to_select,  :]
-        self._data_valid['3d'] = data_valid["combined_3d_cam"][:, indices_to_select,  :]*1000
+        self._data_valid['2d'] = data_valid["data_2d"][:, indices_to_arrange, :][:, indices_to_select,  :]
+        self._data_valid['3d'] = data_valid["data_3d"][:, indices_to_arrange, :][:, indices_to_select,  :]
 
-        print(self._data_valid['3d'][0, :, :])
-        print(self._data_valid['2d'][0, :, :])
+        # visualize_2d(self._data_train['2d'][0, :, :], 'debug_surreal')
 
         print("Normalizing screen coordinates")
         for i in tqdm(range(self._data_train['3d'].shape[0])):
             self._data_train['3d'][i, :] -= self._data_train['3d'][i, 0]
 
-        if not load_metrics:
-            self.mean_2d = np.mean(self._data_train['2d'], axis=0)
-            self.std_2d = np.std(self._data_train['2d'], axis=0)
-            self.mean_3d = np.mean(self._data_train['3d'], axis=0)
-            self.std_3d = np.std(self._data_train['3d'], axis=0)
-
-            if not os.path.exists(os.path.join("metrics/", filename + "_metrics.npz")):
-                np.savez_compressed(
-                    os.path.join("metrics/", filename + "_metrics"),
-                    mean_2d=self.mean_2d, std_2d=self.std_2d,
-                    mean_3d=self.mean_3d, std_3d=self.std_3d)
-        else:
-            data = np.load(load_metrics)
-            self.mean_2d = data['mean_2d']
-            self.std_2d = data['std_2d']
-            self.mean_3d = data['mean_3d']
-            self.std_3d = data['std_3d']
+        self.mean_2d = np.mean(self._data_train['2d'], axis=0)
+        self.std_2d = np.std(self._data_train['2d'], axis=0)
+        self.mean_3d = np.mean(self._data_train['3d'], axis=0)
+        self.std_3d = np.std(self._data_train['3d'], axis=0)
 
         self._data_train['3d'] = normalize_data(self._data_train['3d'], self.mean_3d, self.std_3d, skip_root=True)
         self._data_train['2d'] = normalize_data(self._data_train['2d'], self.mean_2d, self.std_2d)
@@ -125,21 +101,6 @@ class ThreeDPWDataset(object):
         self._data_valid['3d'] = normalize_data(self._data_valid['3d'], self.mean_3d, self.std_3d, skip_root=True)
         self._data_valid['2d'] = normalize_data(self._data_valid['2d'], self.mean_2d, self.std_2d)
 
-        visualize_2d(self._data_train['2d'][0, :, :], 'debug3dpw')
-
-    def augment(self):
-        angles = [2, 3, 4, 6]
-        data_3d = []
-        data_2d = []
-
-        for i in range(self._data_train['3d'].shape[0]):
-            for angle_i in angles:
-                augmented = rotate_y(self._data_train['3d'][i, :, :], np.pi/angle_i)
-                data_3d.append(augmented)
-                data_2d.append(self._data_train['2d'][i, :, :])
-
-        self._data_train['3d'] = np.vstack((self._data_train['3d'], data_3d))
-        self._data_train['2d'] = np.vstack((self._data_train['2d'], data_2d))        
 
     def define_actions(self, action=None):
         all_actions = ["N"]

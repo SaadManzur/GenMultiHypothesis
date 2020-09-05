@@ -41,3 +41,12 @@ def unnormalize_data(X, mean, std, skip_root=False):
             X[i, 1:] = np.multiply(X[i, 1:], std[1:]) + mean[1:]
 
     return X
+
+def rotate_y(joints, angle):
+    matrix = np.array([
+        [np.cos(angle), 0, np.sin(angle)],
+        [0, 1, 0],
+        [-np.sin(angle), 0, np.cos(angle)]
+    ])
+    
+    return np.matmul(matrix, joints.T).T
