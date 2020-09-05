@@ -1,6 +1,6 @@
 # Overview
 
-Modified version of the original repository [here]{https://github.com/chaneyddtt/Generating-Multiple-Hypotheses-for-3D-Human-Pose-Estimation-with-Mixture-Density-Network}. Cleaned and edited to do cross-dataset analysis.
+Modified version of the original repository [here](https://github.com/chaneyddtt/Generating-Multiple-Hypotheses-for-3D-Human-Pose-Estimation-with-Mixture-Density-Network). Cleaned and edited to do cross-dataset analysis.
 
 In the original paper, they used H36M's 2D basic 16 joints configuration (including root joint) to train, but for 3d they removed the root and replaced it with the noise joint. Meaning they were using the following indices for 2D joints: 
 
@@ -15,7 +15,7 @@ and for 3d:
 For GPA, the original joint ordering appears to be flipped from the original one.
 
 # Datasets
-Datasets can be found [here]{https://drive.google.com/drive/folders/1AeHrozrHHPUuDdW4Shm6QX-K12K566c4?usp=sharing}. Even though, the datasets are here, you will need proper authorization to use in research.
+Datasets can be found [here](https://drive.google.com/drive/folders/1AeHrozrHHPUuDdW4Shm6QX-K12K566c4?usp=sharing). Even though, the datasets are here, you will need proper authorization to use in research.
 
 # Quantative Results
 
