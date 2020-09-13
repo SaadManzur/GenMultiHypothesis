@@ -19,6 +19,17 @@ Datasets can be found [here](https://drive.google.com/drive/folders/1AeHrozrHHPU
 
 # Quantative Results
 
+## 2D Centered
+| Train(&#8595;) Test(&#8594;)   |  H36M  |   GPA  |  3DPW  | 3DPW_AUG | SURREAL |    CKPT_NAME    | CKPT_INDEX |
+|--------------------------------|--------|--------|--------|----------|---------|-----------------|------------|
+| H36M                           |  49.81 |  86.76 |  90.84 |  89.55   |   85.25 | h36m_cnt2d_1    | 24371      |
+| GPA                            |  93.73 |  52.16 | 106.30 | 106.21   |   99.29 | gpa_cnt2d_1     | 34760      |
+| 3DPW                           | 115.82 | 106.01 |  70.26 |  79.34   |   97.34 | 3dpw_cnt2d_1    |  7810      |
+| 3DPW_AUG                       | 111.61 | 103.23 |  72.57 |  61.82   |   96.09 | 3dpw_aug_cnt2d_1| 12432      |
+| SURREAL                        | 
+
+## Without 2D Centered
+
 | Train(&#8595;) Test(&#8594;)   |  H36M  |  GPA   |  3DPW  | 3DPW_AUG | SURREAL |
 |--------------------------------|--------|--------|--------|----------|---------|
 | H36M                           |  61.46 | 140.95 |  97.66 |   152.53 |  156.63 |
@@ -26,6 +37,7 @@ Datasets can be found [here](https://drive.google.com/drive/folders/1AeHrozrHHPU
 | 3DPW                           | 125.65 | 128.83 |  67.15 |   142.13 |  131.78 |
 | 3DPW_AUG                       | 162.54 | 154.22 |  95.88 |    78.64 |  118.95 |
 | SURREAL                        |        |        |        |          |   65.21 |
+| H36M (ELEV AUG x2)             |  69.86 | 136.60 | 122.47 |          |         |
 
 ## Command Line Args
 ```

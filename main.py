@@ -1,4 +1,3 @@
-from datasets.SurrealDataset import SurrealDataset
 import os
 import time
 import argparse
@@ -12,10 +11,6 @@ from progress.bar import Bar
 from src.mix_den_model import LinearModel
 from datasets.utils import AverageMeter, unnormalize_data
 from datasets.visualizer import plot_3d
-
-from datasets.GPADataset import GPADataset
-from datasets.H36MDataset import H36MDataset
-from datasets.ThreeDPWDataset import ThreeDPWDataset
 
 import logging, logging.config
 from six.moves import xrange
@@ -76,6 +71,8 @@ def parser():
     parser.add_argument("--eval_n_epoch", type=int, default=5)
     parser.add_argument("--qual", type=str, default=None)
     parser.add_argument("--metrics", type=str, default=None)
+    parser.add_argument("--augment", type=int, default=0)
+    parser.add_argument("--not_center2d", action='store_false', default=True)
     
     return parser.parse_args()
 
@@ -353,15 +350,35 @@ if __name__ == "__main__":
     eval_every_n_epochs = args.eval_n_epoch
     
     if args.dataset == '3dpw':
-        dataset = ThreeDPWDataset('data/3dpw_wo_invalid.npz', args.metrics)
+        from datasets.ThreeDPWDataset import ThreeDPWDataset
+        dataset = ThreeDPWDataset('data/3dpw_wo_invalid.npz', args.metrics, center_2d=args.not_center2d)
     elif args.dataset == 'gpa':
-        dataset = GPADataset('data/gpa_xyz_projected_wc_v3.npz', args.metrics)
+        from datasets.GPADataset import GPADataset
+        dataset = GPADataset('data/gpa_xyz_projected_wc_v3.npz', args.metrics, center_2d=args.not_center2d)
     elif args.dataset == 'h36m':
-        dataset = H36MDataset('data/h36m', args.metrics)
+        from datasets.H36MDataset import H36MDataset
+        dataset = H36MDataset('data/h36m', args.metrics, args.augment, center_2d=args.not_center2d)
     elif args.dataset == 'surreal':
-        dataset = SurrealDataset("data/surreal_train_compiled.npz", "data/surreal_val_compiled.npz")
+        from datasets.SurrealDataset import SurrealDataset
+        dataset = SurrealDataset("data/surreal_train_compiled.npz", "data/surreal_val_compiled.npz", center_2d=args.not_center2d)
     elif args.dataset == '3dpw_aug':
-        dataset = ThreeDPWDataset("data/3dpw_augmented_wo_invalid.npz", args.metrics)
+        from datasets.ThreeDPWDataset import ThreeDPWDataset
+        dataset = ThreeDPWDataset("data/3dpw_augmented_wo_invalid.npz", args.metrics, center_2d=args.not_center2d)
+    elif args.dataset == 'h36m_noaug':
+        from datasets.H36MAugmentedDataset import H36MAugmentedDataset
+        dataset = H36MAugmentedDataset("data/h36m_s1_noaug.npz", args.metrics, center_2d=args.not_center2d)
+    elif args.dataset == 'h36m_rotaug':
+        from datasets.H36MAugmentedDataset import H36MAugmentedDataset
+        dataset = H36MAugmentedDataset("data/h36m_s1_rotaug.npz", args.metrics, center_2d=args.not_center2d)
+    elif args.dataset == 'h36m_focaug':
+        from datasets.H36MAugmentedDataset import H36MAugmentedDataset
+        dataset = H36MAugmentedDataset("data/h36m_s1_focaug.npz", args.metrics, center_2d=args.not_center2d)
+    elif args.dataset == 'h36m_elevaug':
+        from datasets.H36MAugmentedDataset import H36MAugmentedDataset
+        dataset = H36MAugmentedDataset("data/h36m_s1_elevaug.npz", args.metrics, center_2d=args.not_center2d)
+    elif args.dataset == 'h36m_augcenter':
+        from datasets.H36MAugmentedDataset import H36MAugmentedDataset
+        dataset = H36MAugmentedDataset('data/h36m_s1_augcenter.npz', args.metrics, center_2d=args.not_center2d)
     else:
         raise ValueError("Dataset not supported. Only supports: h36m, gpa, and 3dpw")
     

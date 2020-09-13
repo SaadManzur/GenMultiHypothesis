@@ -2,7 +2,7 @@ import os
 import copy
 import numpy as np
 from tqdm import tqdm
-from datasets.utils import normalize_screen_coordinates
+from datasets.utils import normalize_screen_coordinates, plot_3d
 from datasets.utils import normalize_data, unnormalize_data
 from matplotlib import pyplot as plt
 
@@ -56,7 +56,7 @@ def visualize_2d(joints_2d, filename="debug"):
 
 class GPADataset(object):
 
-    def __init__(self, path, load_metrics=None):
+    def __init__(self, path, load_metrics=None, center_2d=False):
         super(GPADataset, self).__init__()
 
         self.cameras = None
@@ -68,6 +68,8 @@ class GPADataset(object):
         self.std_2d = 0.0
         self.mean_3d = 0.0
         self.std_3d = 0.0
+
+        self.center_2d = center_2d
 
         self.load_data(path, load_metrics)
 
@@ -81,7 +83,7 @@ class GPADataset(object):
         data_valid = data['test']
 
         indices_to_select = [0, 24, 25, 26, 29, 30, 31, 2, 5, 6, 7, 17, 18, 19, 9, 10, 11]
-        indices_to_sort = [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16] # [0, 4, 5, 6, 1, 2, 3, 7, 8, 10, 14, 15, 16, 11, 12, 13]
+        indices_to_sort = [0, 4, 5, 6, 1, 2, 3, 7, 8, 10, 14, 15, 16, 11, 12, 13]
 
         self._data_train['2d'] = data_train["2d_projected"][:, indices_to_select,  :][:, indices_to_sort, :]
         self._data_train['3d'] = data_train["3d"][:, indices_to_select,  :][:, indices_to_sort, :]*1000
@@ -94,8 +96,16 @@ class GPADataset(object):
         for i in range(self._data_train['3d'].shape[0]):
             self._data_train['3d'][i, :] -= self._data_train['3d'][i, 0]
 
+            if self.center_2d:
+                self._data_train['2d'][i, :] -= self._data_train['2d'][i, 0] 
+
         for i in range(self._data_valid['3d'].shape[0]):
             self._data_valid['3d'][i, :] -= self._data_valid['3d'][i, 0]
+
+            if self.center_2d:
+                self._data_valid['2d'][i, :] -= self._data_valid['2d'][i, 0]
+
+        self.plot_random()
 
         if not load_metrics:
             self.mean_2d = np.mean(self._data_train['2d'], axis=0)
@@ -116,10 +126,10 @@ class GPADataset(object):
             self.std_3d = data['std_3d']
 
         self._data_train['3d'] = normalize_data(self._data_train['3d'], self.mean_3d, self.std_3d, skip_root=True)
-        self._data_train['2d'] = normalize_data(self._data_train['2d'], self.mean_2d, self.std_2d)
+        self._data_train['2d'] = normalize_data(self._data_train['2d'], self.mean_2d, self.std_2d, skip_root=self.center_2d)
         
         self._data_valid['3d'] = normalize_data(self._data_valid['3d'], self.mean_3d, self.std_3d, skip_root=True)
-        self._data_valid['2d'] = normalize_data(self._data_valid['2d'], self.mean_2d, self.std_2d)
+        self._data_valid['2d'] = normalize_data(self._data_valid['2d'], self.mean_2d, self.std_2d, skip_root=self.center_2d)
 
         visualize_2d(self._data_train['2d'][0, :, :], 'debug3dpw')
 
@@ -145,3 +155,11 @@ class GPADataset(object):
 
     def get_3d_train(self):
         return self._data_train['3d'].reshape((-1, 16*3))
+
+    def plot_random(self):
+        idx = np.random.randint(0, high=self._data_train['3d'].shape[0])
+
+        fig = plt.figure(figsize=(10, 10))
+        ax = fig.add_subplot(111, projection='3d')
+        plot_3d(self._data_train['3d'][idx, :, :]/1000, ax, parents, joints_left, joints_right)
+        plt.show()

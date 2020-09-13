@@ -1,6 +1,7 @@
 import copy
 import numpy as np
 from tqdm import tqdm
+from datasets.utils import plot_3d
 from datasets.utils import normalize_screen_coordinates
 from datasets.utils import normalize_data, unnormalize_data
 from matplotlib import pyplot as plt
@@ -51,7 +52,7 @@ def visualize_2d(joints_2d, filename="debug"):
 
 class SurrealDataset(object):
 
-    def __init__(self, path_train, path_valid):
+    def __init__(self, path_train, path_valid, center_2d=False):
         super(SurrealDataset, self).__init__()
 
         # TODO: Update camera later if needed
@@ -64,6 +65,8 @@ class SurrealDataset(object):
         self.std_2d = 0.0
         self.mean_3d = 0.0
         self.std_3d = 0.0
+
+        self.center_2d = center_2d
 
         self.load_data(path_train, path_valid)
 
@@ -87,19 +90,27 @@ class SurrealDataset(object):
         for i in tqdm(range(self._data_train['3d'].shape[0])):
             self._data_train['3d'][i, :] -= self._data_train['3d'][i, 0]
 
+            if self.center_2d:
+                self._data_train['2d'][i, :] -= self._data_train['2d'][i, 0]
+        
+        self.plot_random()
+
         self.mean_2d = np.mean(self._data_train['2d'], axis=0)
         self.std_2d = np.std(self._data_train['2d'], axis=0)
         self.mean_3d = np.mean(self._data_train['3d'], axis=0)
         self.std_3d = np.std(self._data_train['3d'], axis=0)
 
         self._data_train['3d'] = normalize_data(self._data_train['3d'], self.mean_3d, self.std_3d, skip_root=True)
-        self._data_train['2d'] = normalize_data(self._data_train['2d'], self.mean_2d, self.std_2d)
+        self._data_train['2d'] = normalize_data(self._data_train['2d'], self.mean_2d, self.std_2d, skip_root=self.center_2d)
 
         for i in tqdm(range(self._data_valid['3d'].shape[0])):
             self._data_valid['3d'][i, :] -= self._data_valid['3d'][i, 0]
+
+            if self.center_2d:
+                self._data_valid['2d'][i, :] -= self._data_valid['2d'][i, 0]
         
         self._data_valid['3d'] = normalize_data(self._data_valid['3d'], self.mean_3d, self.std_3d, skip_root=True)
-        self._data_valid['2d'] = normalize_data(self._data_valid['2d'], self.mean_2d, self.std_2d)
+        self._data_valid['2d'] = normalize_data(self._data_valid['2d'], self.mean_2d, self.std_2d, skip_root=self.center_2d)
 
 
     def define_actions(self, action=None):
@@ -124,3 +135,11 @@ class SurrealDataset(object):
 
     def get_3d_train(self):
         return self._data_train['3d'].reshape((-1, 16*3))
+
+    def plot_random(self):
+        idx = np.random.randint(0, high=self._data_train['3d'].shape[0])
+
+        fig = plt.figure(figsize=(10, 10))
+        ax = fig.add_subplot(111, projection='3d')
+        plot_3d(self._data_train['3d'][idx, :, :]/1000, ax, parents, joints_left, joints_right)
+        plt.show()

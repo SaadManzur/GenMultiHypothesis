@@ -50,3 +50,40 @@ def rotate_y(joints, angle):
     ])
     
     return np.matmul(matrix, joints.T).T
+
+def rotate_x(joints, angle):
+    matrix = np.array([
+        [1.0, 0.0, 0.0],
+        [0.0, np.cos(angle), np.sin(angle)],
+        [0.0, -np.sin(angle), np.cos(angle)]
+    ])
+
+    return np.matmul(matrix, joints.T).T
+
+def plot_3d(joints, subplot, parents, left, right):
+    subplot.scatter(joints[:, 0], joints[:, 1], zs=joints[:, 2], color='k')
+    
+    for i in range(joints.shape[0]):
+        parent = parents[i]
+        
+        if parent < 0:
+            continue
+            
+        color = 'k'
+        if i in left and parent in left:
+            color = 'r'
+        elif i in right and parent in right:
+            color = 'b'
+        
+        subplot.plot([joints[i, 0], joints[parent, 0]],
+                     [joints[i, 1], joints[parent, 1]],
+                     zs=[joints[i, 2], joints[parent, 2]],
+                     color=color)
+
+        subplot.text(joints[i, 0], joints[i, 1], joints[i, 2], str(i), (1, 1, 0))
+    
+    subplot.set_xlim(-1, 1)
+    subplot.set_ylim(1, -1)
+    subplot.set_zlim(-1, 1)
+    
+    subplot.view_init(azim=95, elev=-75)

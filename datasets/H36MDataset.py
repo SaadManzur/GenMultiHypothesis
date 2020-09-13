@@ -4,6 +4,7 @@ import glob
 import copy
 import numpy as np
 from tqdm import tqdm
+from datasets.utils import rotate_x, plot_3d
 from datasets.utils import normalize_screen_coordinates
 from datasets.utils import normalize_data, unnormalize_data
 from matplotlib import pyplot as plt
@@ -92,7 +93,7 @@ def visualize_3d(joints_3d, filename="debug3d"):
 
 class H36MDataset(object):
 
-    def __init__(self, path, load_metrics=None):
+    def __init__(self, path, load_metrics=None, augment_count=0, center_2d=False):
         # TODO: Update the fps here if needed
         super(H36MDataset, self).__init__()
 
@@ -109,12 +110,16 @@ class H36MDataset(object):
 
         self.cameras = []
 
+        self.augment_count = augment_count
+
+        self.center_2d = center_2d
+
         self.load_data(path, load_metrics)
 
     def load_data(self, path, load_metrics):
         filename, _ = os.path.splitext(os.path.basename(path))
 
-        indices_to_select_2d = [0, 1, 2, 3, 6, 7, 8, 12, 13, 15, 17, 18, 19, 25, 26, 27]
+        indices_to_select_2d = [0, 6, 7, 8, 1, 2, 3, 12, 13, 15, 25, 26, 27, 17, 18, 19]
         indices_to_select_3d = [1, 2, 3, 6, 7, 8, 12, 13, 14, 15, 17, 18, 19, 25, 26, 27]
 
         self.cameras = cameras.load_cameras(os.path.join(path, "cameras.h5"))
@@ -130,19 +135,30 @@ class H36MDataset(object):
         trainset = self.load_3d_data(path, TRAIN_SUBJECTS, actions)
         testset = self.load_3d_data(path, TEST_SUBJECTS, actions)
 
-        d2d_train, d3d_train = self.project_to_cameras(trainset)
+        d2d_train, d3d_train = self.project_to_cameras(trainset, augment_count=self.augment_count)
         d2d_valid, d3d_valid = self.project_to_cameras(testset)
 
-        self._data_train['2d'] = np.array(d2d_train)[:, indices_to_select_2d, :]
+        if self.center_2d:
+            self._data_train['2d'] = self.root_center(np.array(d2d_train))[:, indices_to_select_2d, :]
+        else:
+            self._data_train['2d'] = np.array(d2d_train)[:, indices_to_select_2d, :]
+        
         self._data_train['3d'] = self.root_center(np.array(d3d_train))[:, indices_to_select_2d, :]
-        self._data_valid['2d'] = np.array(d2d_valid)[:, indices_to_select_2d, :]
+        
+        if self.center_2d:
+            self._data_valid['2d'] = self.root_center(np.array(d2d_valid))[:, indices_to_select_2d, :]
+        else:
+            self._data_valid['2d'] = np.array(d2d_valid)[:, indices_to_select_2d, :]
+
         self._data_valid['3d'] = self.root_center(np.array(d3d_valid))[:, indices_to_select_2d, :]
+
+        self.plot_random()
 
         if not load_metrics:
             self.mean_3d = np.mean(self._data_train['3d'], axis=0)
             self.std_3d = np.std(self._data_train['3d'], axis=0)
             self.mean_2d = np.mean(self._data_train['2d'], axis=0)
-            self.std_2d = np.std(self._data_valid['2d'], axis=0)
+            self.std_2d = np.std(self._data_train['2d'], axis=0)
 
             if not os.path.exists(os.path.join("metrics/", filename + "_metrics.npz")):
                 np.savez_compressed(
@@ -156,14 +172,11 @@ class H36MDataset(object):
             self.mean_3d = data['mean_3d']
             self.std_3d = data['std_3d']
 
-        width=1000
-        height=1002
-
         self._data_train['3d'] = normalize_data(self._data_train['3d'], self.mean_3d, self.std_3d, skip_root=True)
-        self._data_train['2d'] = normalize_data(self._data_train['2d'], self.mean_2d, self.std_2d)
+        self._data_train['2d'] = normalize_data(self._data_train['2d'], self.mean_2d, self.std_2d, skip_root=self.center_2d)
 
         self._data_valid['3d'] = normalize_data(self._data_valid['3d'], self.mean_3d, self.std_3d, skip_root=True)
-        self._data_valid['2d'] = normalize_data(self._data_valid['2d'], self.mean_2d, self.std_2d)
+        self._data_valid['2d'] = normalize_data(self._data_valid['2d'], self.mean_2d, self.std_2d, skip_root=self.center_2d)
 
 
     def load_3d_data(self, path, subjects, actions):
@@ -223,22 +236,11 @@ class H36MDataset(object):
 
         return np.mean(complete_data, axis=0), np.std(complete_data, axis=0)
 
-    def project_to_cameras( self, poses_set ):
-        """
-        Project 3d poses using camera parameters
-
-        Args
-        poses_set: dictionary with 3d poses
-        cams: dictionary with camera parameters
-        ncams: number of cameras per subject
-        Returns
-        t2d: dictionary with 2d poses
-        """
+    def project_to_cameras( self, poses_set, augment_count=0 ):
         t2d = []
         t3d = []
 
         total_points = 0
-        once = False
         for key in poses_set.keys():
             (subj, action, sqename) = key
             t3dw = poses_set[key]
@@ -251,6 +253,27 @@ class H36MDataset(object):
                 total_points += pts2d.shape[0]
                 t2d.append(pts2d)
                 t3d.append(t3dc.reshape((-1, 32, 3)))
+
+        for i_aug in range(augment_count):
+            angle = np.random.uniform(low=-np.pi/10, high=np.pi/10)
+
+            for key in poses_set.keys():
+                (subj, action, sqename) = key
+                t3dw = poses_set[key]
+
+                for idx in tqdm(range(t3dw.shape[0])):
+                    rotated = rotate_x(t3dw[idx, :, :], angle)
+                    
+                    cam = idx % 4
+                    R, T, f, c, k, p, name = self.cameras[ (subj, cam+1) ]
+                    t3dc = cameras.world_to_camera_frame( np.reshape(rotated, [-1, 3]), R, T)
+                    pts2d, _, _, _, _ = cameras.project_point_radial( np.reshape(rotated, [-1, 3]), R, T, f, c, k, p )
+                    pts2d = np.reshape( pts2d, [-1, 32, 2] )
+                    total_points += pts2d.shape[0]
+                    t2d.append(pts2d)
+                    t3d.append(t3dc.reshape((-1, 32, 3)))
+
+
 
         t2d = np.vstack(t2d)
         t3d = np.vstack(t3d)
@@ -281,3 +304,11 @@ class H36MDataset(object):
 
     def get_3d_train(self):
         return self._data_train['3d'].reshape((-1, 16*3))
+
+    def plot_random(self):
+        idx = np.random.randint(0, high=self._data_train['3d'].shape[0])
+
+        fig = plt.figure(figsize=(10, 10))
+        ax = fig.add_subplot(111, projection='3d')
+        plot_3d(self._data_train['3d'][idx, :, :]/1000, ax, parents, joints_left, joints_right)
+        plt.show()
