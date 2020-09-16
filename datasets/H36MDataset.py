@@ -273,8 +273,6 @@ class H36MDataset(object):
                     t2d.append(pts2d)
                     t3d.append(t3dc.reshape((-1, 32, 3)))
 
-
-
         t2d = np.vstack(t2d)
         t3d = np.vstack(t3d)
 
